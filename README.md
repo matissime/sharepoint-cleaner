@@ -20,7 +20,7 @@ This repository contains PowerShell scripts and guides for cleaning up file vers
 ## Getting Started
 
 1. **Prerequisites**
-   - Windows PowerShell 5.1 or PowerShell 7+
+   - Windows PowerShell PowerShell 7+
    - Required modules: `PnP.PowerShell`, `Microsoft.Graph` (for GraphPicker version)
    - SharePoint Online admin permissions
 
