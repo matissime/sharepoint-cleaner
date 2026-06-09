@@ -1,44 +1,111 @@
-# SharePoint Version Cleaner
+# SharePoint Version Cleaner (SPOVC)
 
-This repository contains PowerShell scripts and guides for cleaning up file versions in SharePoint Online document libraries. The tools help administrators manage and reduce the number of file versions stored, saving space and improving performance.
+A modular PowerShell 7+ GUI application for managing file version cleanup in SharePoint Online document libraries. Provides scan, dry-run, and cleanup modes with HTML session reporting and comprehensive logging.
 
-## Project Structure
+## 🎯 Key Features
 
-- **Backup Versions/**
-  - `SPOVC.ps1`: Legacy or backup version of the main version cleaner script.
-  - `SPOVC-GraphPicker.ps1`: A version of the script that uses Microsoft Graph and provides a graphical picker for site selection.
+- **Single & Batch Operations**: Cleanup individual sites/libraries or entire tenant
+- **Configurable Retention**: Externalized JSON config (default: keep 25 versions)
+- **Windows Forms GUI**: Real-time progress tracking with cancellation support
+- **Session Reporting**: HTML reports with per-site metrics and storage savings
+- **JWT Token Caching**: Efficient authentication with fallback to interactive auth
+- **Modular Architecture**: Clean separation of concerns for maintainability and testing
 
-- **SharePoint Version Cleaner/**
-  - `SPOVC.ps1`: The main PowerShell script for cleaning up SharePoint file versions. Includes a Windows Forms GUI for user interaction.
-  - `SharePoint File Version Cleaner Guide.docx`: User guide with detailed instructions and screenshots.
+## 📁 Project Structure
 
-- **SharePoint Version Cleaner - CSV Support/**
-  - `SPOVC.ps1`: Enhanced version of the cleaner script that supports batch processing of multiple SharePoint sites via a CSV file.
-  - `SharePoint File Version Cleaner Guide.docx`: User guide for the CSV-enabled version.
-  - `exampleCSV.csv`: Example CSV file format for batch processing. The file should contain a column `SiteUrl` with one SharePoint site URL per line.
+```
+SharePoint-Version-Cleaner/
+├── SPOVC-Modular.ps1                 ← Main entry point (new modular version)
+├── config.json                       ← External configuration (no more hardcoding!)
+│
+├── Modules/                          ← Modular PowerShell architecture
+│   ├── Core/
+│   │   ├── Core.psm1                 (Logging, utilities, session state)
+│   │   └── Config.psm1               (Configuration management)
+│   │
+│   ├── Authentication/
+│   │   └── Authentication.psm1       (JWT tokens, SharePoint connections)
+│   │
+│   ├── Reporting/
+│   │   └── Reporting.psm1            (Session statistics, HTML reports)
+│   │
+│   ├── UI/
+│   │   └── UI.psm1                   (Windows Forms dialogs)
+│   │
+│   ├── Processing/
+│   │   └── Processing.psm1           (Job orchestration, background processing)
+│   │
+│   └── Processing/
+│       └── SharePointOps.psm1        (SharePoint API operations, version management)
+│
+├── Logs/                             ← Runtime logs & session reports (auto-created)
+│   ├── SPVersionCleaner_*.log
+│   └── SharePoint_Version_Cleaner_Report_*.html
+│
+├── Documentation/
+│   ├── README.md                     ← This file
+│   ├── ARCHITECTURE.md               ← Visual module structure & data flows
+│   ├── MODULAR_SUMMARY.md            ← Quick reference guide
+│   └── REFACTORING_GUIDE.md          ← Complete implementation status
+│
+└── .github/
+    └── copilot-instructions.md       ← AI agent reference
+```
 
-## Getting Started
+## 🚀 Getting Started
 
-1. **Prerequisites**
-   - Windows PowerShell PowerShell 7+
-   - Required modules: `PnP.PowerShell`, `Microsoft.Graph` (for GraphPicker version)
-   - SharePoint Online admin permissions
+### Prerequisites
 
-2. **Running the Script**
-   - Download or clone this repository.
-   - Open PowerShell as Administrator.
-   - Navigate to the desired script directory.
-   - Run the script:
-     ```powershell
-     .\SPOVC.ps1
-     ```
-   - For the CSV version, edit `exampleCSV.csv` with your site URLs and run the script in the `SharePoint Version Cleaner - CSV Support` folder.
+- **PowerShell 7+** (verify with `$PSVersionTable.PSVersion.Major`)
+- **PnP.PowerShell module** (installed automatically on first run)
+- **SharePoint Online admin permissions**
+- **Entra (Azure AD) app registration** (see "Entra App Setup" below)
 
-3. **Guides**
+### Quick Start
 
-## Configuring an Entra (Azure AD) App for PnP-Online
+1. **Clone or download** this repository
+2. **Edit `config.json`** with your tenant details:
+   ```json
+   {
+     "settings": {
+       "clientId": "your-entra-app-id",
+       "adminUrl": "https://your-tenant-admin.sharepoint.com/",
+       "keepVersions": 25
+     }
+   }
+   ```
+3. **Run as Administrator**:
+   ```powershell
+   cd SharePoint-Version-Cleaner
+   .\SPOVC-Modular.ps1
+   ```
+4. **Select operation mode** from the GUI menu:
+   - **Calculate/Estimate** (scan-only preview)
+   - **Dry-Run** (simulate changes without deletion)
+   - **Cleanup** (apply version removal)
 
-To use these scripts with SharePoint Online, you need to register an application in Microsoft Entra (Azure AD) and grant it the necessary permissions. This is required for authentication and to allow the scripts to access your SharePoint sites.
+### Testing Workflow
+
+⚠️ **Always follow this sequence**:
+
+1. Use **Calculate/Estimate** first to preview what will be deleted
+2. Review the HTML report in `Logs/`
+3. Run **Dry-Run** (if available) to see actual impact
+4. Only then proceed with **Cleanup** mode
+5. Check logs for detailed operation traces
+
+## 📚 Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Visual module structure, dependencies, data flows |
+| [MODULAR_SUMMARY.md](./MODULAR_SUMMARY.md) | Executive summary, quick reference |
+| [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) | Implementation status, migration checklist |
+| [.github/copilot-instructions.md](./.github/copilot-instructions.md) | Technical reference for developers |
+
+## 🔐 Entra App Setup
+
+To use SPOVC with SharePoint Online, you need to register an application in Microsoft Entra (Azure AD) and configure it with the required permissions. This clientId goes into `config.json`.
 
 ### Prerequisites
 - PowerShell 7
@@ -73,27 +140,66 @@ To use these scripts with SharePoint Online, you need to register an application
 
 That’s it! Your Entra app registration is complete and ready to use with the SharePoint Version Cleaner scripts.
 
-## Example CSV Format
+## ⚙️ Configuration
 
+All settings are stored in `config.json` - no need to edit the PowerShell script!
+
+### config.json Reference
+
+```json
+{
+  "settings": {
+    "clientId": "your-entraid-client-app-id",
+    "adminUrl": "https://yourtenantname-admin.sharepoint.com/",
+    "keepVersions": 25
+  },
+  "logging": {
+    "directory": "Logs",
+    "enableFileLog": true,
+    "enableConsoleLog": true
+  },
+  "inactiveSites": {
+    "defaultDaysInactive": 90,
+    "defaultMaxStorageMB": 100,
+    "includeEmptySites": false
+  }
+}
 ```
-SiteUrl
-https://yourtenant.sharepoint.com/sites/site1
-https://yourtenant.sharepoint.com/sites/site2
-https://yourtenant.sharepoint.com/sites/site3
-```
 
-## Notes
-- Always test scripts in a non-production environment first.
-- Ensure you have appropriate permissions before running cleanup operations.
-- Logs are generated in a `Logs` subfolder for each run.
+### Configuration Options
 
-## License & Support
+| Option | Default | Description |
+|--------|---------|-------------|
+| `clientId` | (required) | Entra app ID from your app registration |
+| `adminUrl` | (required) | SharePoint admin URL for your tenant |
+| `keepVersions` | 25 | Number of recent versions to retain per file |
+| `enableFileLog` | true | Write detailed logs to `Logs/` directory |
+| `enableConsoleLog` | true | Display logs in PowerShell console |
+| `defaultDaysInactive` | 90 | Consider sites inactive after N days |
+| `defaultMaxStorageMB` | 100 | Storage threshold for cleanup recommendations |
 
-This project is provided **free to use by anyone**.
+## ✅ Best Practices & Notes
 
-However, please note that it is **not actively maintained or supported**. These scripts were originally created for a specific internal project and are shared here in the hope that they may be useful to others.
+- **Always test in a non-production environment first**
+- **Start with Calculate/Estimate mode** to preview changes
+- **Review HTML reports** before running cleanup
+- **Check log files** (`Logs/`) for detailed operation traces
+- **Ensure you have appropriate SharePoint admin permissions**
+- **Backup site data** before large-scale cleanup operations
+- **Monitor storage savings** after running cleanup
 
-Feel free to use, modify, or adapt them as needed, but no guarantees are provided regarding updates, bug fixes, or support.
- 
-Use at your own risk. Contributions and suggestions are welcome.
+## 🏗️ Modular Architecture Benefits
+
+SPOVC is built with clean modular design:
+
+- **Testable**: Each module can be tested independently
+- **Maintainable**: Changes isolated to specific modules
+- **Reusable**: Import modules into other PowerShell scripts
+- **Configurable**: External JSON config eliminates script editing
+- **Transparent**: Clear separation of concerns (Auth, UI, Processing, Reporting)
+
+For developers, see:
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Module dependencies and data flow
+- [REFACTORING_GUIDE.md](./REFACTORING_GUIDE.md) - Implementation details
+- [.github/copilot-instructions.md](./.github/copilot-instructions.md) - Technical reference
 

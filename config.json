@@ -1,0 +1,18 @@
+{
+  "settings": {
+    "clientId": "your-entraid-client-app-id",
+    "adminUrl": "https://your-tenant-admin.sharepoint.com/",
+    "defaultSiteUrl": "https://your-tenant.sharepoint.com/sites/sitename",
+    "keepVersions": 5
+  },
+  "logging": {
+    "directory": "Logs",
+    "enableFileLog": true,
+    "enableConsoleLog": true
+  },
+  "inactiveSites": {
+    "defaultDaysInactive": 90,
+    "defaultMaxStorageMB": 100,
+    "includeEmptySites": true
+  }
+}
