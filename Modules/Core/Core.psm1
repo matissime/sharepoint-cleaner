@@ -11,7 +11,7 @@ function Write-Log {
         [string]$Message,
         
         [Parameter(Mandatory=$false)]
-        [ValidateSet("INFO", "WARNING", "ERROR", "SUCCESS")]
+        [ValidateSet("DEBUG", "INFO", "WARNING", "ERROR", "SUCCESS")]
         [string]$Level = "INFO",
         
         [Parameter(Mandatory=$false)]
@@ -24,14 +24,26 @@ function Write-Log {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "[$timestamp] [$Level] $Message"
     
-    # Write to log file
-    if ($script:logFile) {
-        Add-Content -Path $script:logFile -Value $logMessage
+    # Write to log file - check both script and global scope
+    $logFilePath = $script:logFile
+    if (-not $logFilePath) {
+        $logFilePath = $global:logFile
+    }
+    
+    if ($logFilePath) {
+        try {
+            Add-Content -Path $logFilePath -Value $logMessage
+        } catch {
+            # Silently fail if log file is locked or unavailable
+        }
     }
     
     # Write to console unless explicitly skipped
     if (-not $SkipConsole) {
         switch ($Level) {
+            "DEBUG" {
+                Write-Host $logMessage -ForegroundColor Gray
+            }
             "ERROR" {
                 Write-Host $logMessage -ForegroundColor Red
             }

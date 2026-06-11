@@ -331,10 +331,157 @@ function Start-InactiveSitesDeletion {
 }
 
 # Export public functions
+<#
+.FUNCTION Get-RecycleBinItems
+.SYNOPSIS
+    Retrieves items from SharePoint site recycle bin
+.DESCRIPTION
+    Fetches all deleted items from the recycle bin of a specified site.
+    Uses PnP to access the Recycle Bin with proper CSOM handling.
+.PARAMETER SiteUrl
+    URL of the SharePoint site
+.EXAMPLE
+    $items = Get-RecycleBinItems -SiteUrl "https://tenant.sharepoint.com/sites/sales"
+    $items | Where-Object { $_.Title -like "*report*" } | Select-Object Title, DeletedDate, DeletedByName
+#>
+function Get-RecycleBinItems {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [string]$SiteUrl
+    )
+
+    try {
+        # Validate parameter before proceeding
+        if ([string]::IsNullOrWhiteSpace($SiteUrl)) {
+            Write-Log "ERROR: SiteUrl parameter is empty or whitespace" "ERROR"
+            throw "SiteUrl cannot be empty or whitespace"
+        }
+
+        Write-Log "Get-RecycleBinItems: Connecting to $SiteUrl" "INFO"
+        
+        # Connect to the site
+        Connect-SharePoint -Url $SiteUrl -UseCache -SuppressSuccessMessage
+
+        # Get recycle bin items using PnP
+        $recycleBinItems = Get-PnPRecycleBinItem
+
+        if ($null -eq $recycleBinItems) {
+            Write-Log "No recycle bin items found for $SiteUrl" "INFO"
+            return @()
+        }
+
+        # Convert to array of custom objects with useful properties
+        $items = @()
+        foreach ($item in @($recycleBinItems)) {
+            $items += @{
+                Id             = $item.Id
+                Title          = $item.Title
+                LeafName       = $item.LeafName
+                DirName        = $item.DirName
+                DeletedDate    = $item.DeletedDate
+                DeletedByName  = $item.DeletedByName
+                Size           = if ($item.Size) { $item.Size } else { 0 }
+                ItemType       = [string]$item.ItemType  # File or Folder (convert enum to string)
+                Stage          = [int]$item.Stage        # 1=FirstStage, 2=SecondStage (ensure int)
+            }
+        }
+
+        Write-Log "Found $($items.Count) items in recycle bin for $SiteUrl" "INFO"
+        return $items
+
+    } catch {
+        Write-Log "Error retrieving recycle bin items from $SiteUrl : $($_.Exception.Message)" "ERROR"
+        throw "Failed to load recycle bin items: $($_.Exception.Message)"
+    }
+}
+
+<#
+.FUNCTION Restore-RecycleBinItem
+.SYNOPSIS
+    Restores a deleted item from the recycle bin
+.DESCRIPTION
+    Moves an item from the recycle bin back to its original location.
+    Supports first-stage (user recycle bin) and second-stage restoration.
+.PARAMETER SiteUrl
+    URL of the SharePoint site
+.PARAMETER ItemId
+    Unique identifier of the recycle bin item
+.EXAMPLE
+    Restore-RecycleBinItem -SiteUrl "https://tenant.sharepoint.com/sites/sales" -ItemId "12345"
+#>
+function Restore-RecycleBinItem {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SiteUrl,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ItemId
+    )
+
+    try {
+        Connect-SharePoint -Url $SiteUrl -UseCache -SuppressSuccessMessage
+
+        # Restore the item
+        Restore-PnPRecycleBinItem -Identity $ItemId -Force
+
+        Write-Log "Successfully restored recycle bin item $ItemId from $SiteUrl" "SUCCESS"
+        return $true
+
+    } catch {
+        Write-Log "Error restoring recycle bin item $ItemId from $SiteUrl : $($_.Exception.Message)" "ERROR"
+        return $false
+    }
+}
+
+<#
+.FUNCTION Remove-RecycleBinItem
+.SYNOPSIS
+    Permanently deletes an item from the recycle bin
+.DESCRIPTION
+    Removes an item permanently (purges from second stage if needed).
+    Cannot be undone - deletion is permanent.
+.PARAMETER SiteUrl
+    URL of the SharePoint site
+.PARAMETER ItemId
+    Unique identifier of the recycle bin item
+.EXAMPLE
+    Remove-RecycleBinItem -SiteUrl "https://tenant.sharepoint.com/sites/sales" -ItemId "12345"
+#>
+function Remove-RecycleBinItem {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SiteUrl,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ItemId
+    )
+
+    try {
+        Connect-SharePoint -Url $SiteUrl -UseCache -SuppressSuccessMessage
+
+        # Permanently delete the item
+        Remove-PnPRecycleBinItem -Identity $ItemId -Force
+
+        Write-Log "Successfully purged recycle bin item $ItemId from $SiteUrl" "SUCCESS"
+        return $true
+
+    } catch {
+        Write-Log "Error removing recycle bin item $ItemId from $SiteUrl : $($_.Exception.Message)" "ERROR"
+        return $false
+    }
+}
+
 Export-ModuleMember -Function @(
     'Get-FileVersions',
     'Remove-FileVersions',
     'Get-InactiveSites',
-    'Start-InactiveSitesDeletion'
+    'Start-InactiveSitesDeletion',
+    'Get-RecycleBinItems',
+    'Restore-RecycleBinItem',
+    'Remove-RecycleBinItem'
 )
 

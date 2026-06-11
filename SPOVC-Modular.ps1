@@ -105,6 +105,23 @@ try {
     exit 1
 }
 
+# Initialize logging
+try {
+    $logsDir = Join-Path $scriptPath "Logs"
+    if (-not (Test-Path $logsDir)) {
+        New-Item -Path $logsDir -ItemType Directory -Force | Out-Null
+    }
+    
+    $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+    $script:logFile = Join-Path $logsDir "SPVersionCleaner_$timestamp.log"
+    $global:logFile = $script:logFile  # Make available globally for modules
+    
+    Write-Host "Log file initialized: $script:logFile" -ForegroundColor Cyan
+    Write-Log "SharePoint Version Cleaner started" "INFO" -SkipConsole
+} catch {
+    Write-Host "Warning: Could not initialize logging: $_" -ForegroundColor Yellow
+}
+
 # Session state and PnP already initialized above
 
 # Global variable to store selected sites for processing
